@@ -1,0 +1,9 @@
+{
+  "name": "Foco — Anti-procrastinación",
+  "short_name": "Foco",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#5b5ce2",
+  "description": "Captura y ejecuta tus pendientes con el menor esfuerzo posible."
+}
