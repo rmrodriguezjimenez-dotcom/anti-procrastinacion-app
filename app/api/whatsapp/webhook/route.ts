@@ -18,8 +18,11 @@ function verifySignature(raw: string, signature: string | null) {
   const expected = crypto.createHmac("sha256", secret).update(raw).digest("hex");
   const received = signature.slice(7);
   if (expected.length !== received.length) return false;
-  const encoder = new TextEncoder();
-  return crypto.timingSafeEqual(encoder.encode(expected), encoder.encode(received));
+  let diff = 0;
+  for (let i = 0; i < expected.length; i += 1) {
+    diff |= expected.charCodeAt(i) ^ received.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 async function transcribeAudio(buffer: Buffer) {
