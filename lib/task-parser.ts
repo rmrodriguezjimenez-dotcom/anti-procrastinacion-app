@@ -9,13 +9,49 @@ function cleanJson(raw: string) {
   return fenced?.[1]?.trim() ?? raw.trim();
 }
 
-function fallback(input: string): ParsedTask {
+function fallback(input: string, now = new Date(), timeZone = "America/Santo_Domingo"): ParsedTask {
+  const text = input.trim();
+  const category = workSignal(text) ? "work" : "other";
+  let due_at: string | null = null;
+
+  const timeMatch = text.match(/\b(?:a\s+las|a\s+la|a\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i);
+  const hour = timeMatch ? Number(timeMatch[1]) : null;
+  const minute = timeMatch?.[2] ? Number(timeMatch[2]) : 0;
+  const meridiem = timeMatch?.[3]?.toLowerCase() ?? "";
+  const normalizedHour = hour === null ? null : (meridiem.includes("p") && hour < 12 ? hour + 12 : meridiem.includes("a") && hour === 12 ? 0 : hour);
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const base = formatter.formatToParts(now);
+  const get = (type: string) => Number(base.find((part) => part.type === type)?.value ?? 0);
+  let year = get("year");
+  let month = get("month");
+  let day = get("day");
+
+  if (/\bmañana\b/i.test(text)) {
+    const next = new Date(Date.UTC(year, month - 1, day + 1));
+    year = next.getUTCFullYear();
+    month = next.getUTCMonth() + 1;
+    day = next.getUTCDate();
+  }
+
+  if (normalizedHour !== null) {
+    // República Dominicana has UTC-4; this fallback is only used when the AI is unavailable.
+    const utcMs = Date.UTC(year, month - 1, day, normalizedHour, minute, 0) + 4 * 60 * 60 * 1000;
+    const candidate = new Date(utcMs);
+    if (!Number.isNaN(candidate.getTime())) due_at = candidate.toISOString();
+  }
+
   return {
-    title: input.trim().slice(0, 180),
+    title: text.slice(0, 180),
     notes: "Capturada sin análisis de IA.",
-    category: "other",
+    category,
     priority: "medium",
-    due_at: null,
+    due_at,
     estimated_minutes: null,
     recurrence: null,
   };
@@ -49,11 +85,13 @@ export async function parseTaskText(
   const text = input.trim();
   if (!text) throw new Error("La tarea está vacía.");
 
-  if (!process.env.OPENAI_API_KEY) return fallback(text);
+  if (!process.env.OPENAI_API_KEY) return fallback(text, now, timeZone);
 
   const ai = getOpenAI();
   const currentLocal = localDateTimeReference(now, timeZone);
-  const response = await ai.responses.create({
+  let response;
+  try {
+    response = await ai.responses.create({
     model: process.env.OPENAI_TASK_MODEL || "gpt-5",
     input: [
       {
@@ -67,6 +105,9 @@ export async function parseTaskText(
       },
     ],
   });
+  } catch {
+    return fallback(text, now, timeZone);
+  }
 
   try {
     const parsed = JSON.parse(cleanJson(response.output_text)) as Partial<ParsedTask>;
@@ -83,7 +124,12 @@ export async function parseTaskText(
       priority: priorities.includes(parsed.priority as TaskPriority)
         ? (parsed.priority as TaskPriority)
         : "medium",
-      due_at: parsed.due_at ? new Date(String(parsed.due_at)).toISOString() : null,
+      due_at: parsed.due_at
+        ? (() => {
+            const date = new Date(String(parsed.due_at));
+            return Number.isNaN(date.getTime()) ? null : date.toISOString();
+          })()
+        : null,
       estimated_minutes: Number.isFinite(Number(parsed.estimated_minutes))
         ? Number(parsed.estimated_minutes)
         : null,
@@ -91,6 +137,6 @@ export async function parseTaskText(
     };
     return normalized;
   } catch {
-    return fallback(text);
+    return fallback(text, now, timeZone);
   }
 }
