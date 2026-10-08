@@ -16,7 +16,15 @@ export async function POST(request: Request) {
     const input = String(body.input || "").trim();
     if (!input) return NextResponse.json({ error: "Escribe o dicta una tarea." }, { status: 400 });
 
-    const parsed = await parseTaskText(input);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("timezone")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const timeZone = profile?.timezone || "America/Santo_Domingo";
+    const parsed = await parseTaskText(input, new Date(), timeZone);
+
     const { data: task, error } = await supabase.from("tasks").insert({
       user_id: userId,
       title: parsed.title,
