@@ -19,7 +19,9 @@ function verifySignature(raw: string, signature: string | null) {
 
 async function transcribeAudio(buffer: Buffer) {
   const openai = getOpenAI();
-  const file = new File([buffer], "whatsapp-voice.ogg", { type: "audio/ogg" });
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  new Uint8Array(arrayBuffer).set(buffer);
+  const file = new File([arrayBuffer], "whatsapp-voice.ogg", { type: "audio/ogg" });
   const transcription = await openai.audio.transcriptions.create({
     file,
     model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
