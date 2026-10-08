@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
-import { toFile } from "openai";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpenAI } from "@/lib/openai";
@@ -20,13 +23,19 @@ function verifySignature(raw: string, signature: string | null) {
 
 async function transcribeAudio(buffer: Buffer) {
   const openai = getOpenAI();
-  const file = await toFile(buffer, "whatsapp-voice.ogg", { type: "audio/ogg" });
-  const transcription = await openai.audio.transcriptions.create({
-    file,
-    model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
-    language: "es",
-  });
-  return transcription.text;
+  const tempPath = path.join(os.tmpdir(), `foco-${crypto.randomUUID()}.ogg`);
+
+  try {
+    await fs.writeFile(tempPath, buffer);
+    const transcription = await openai.audio.transcriptions.create({
+      file: OpenAI.toFile ? await OpenAI.toFile(buffer, "whatsapp-voice.ogg", { type: "audio/ogg" }) : fs.createReadStream(tempPath),
+      model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
+      language: "es",
+    });
+    return transcription.text;
+  } finally {
+    await fs.rm(tempPath, { force: true });
+  }
 }
 
 export async function GET(request: Request) {
