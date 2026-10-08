@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpenAI } from "@/lib/openai";
@@ -28,7 +27,7 @@ async function transcribeAudio(buffer: Buffer) {
   try {
     await fs.writeFile(tempPath, buffer);
     const transcription = await openai.audio.transcriptions.create({
-      file: OpenAI.toFile ? await OpenAI.toFile(buffer, "whatsapp-voice.ogg", { type: "audio/ogg" }) : fs.createReadStream(tempPath),
+      file: fs.createReadStream(tempPath),
       model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
       language: "es",
     });
