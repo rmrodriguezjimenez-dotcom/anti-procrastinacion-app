@@ -26,7 +26,9 @@ async function transcribeAudio(buffer: Buffer) {
   const tempPath = path.join(os.tmpdir(), `foco-${crypto.randomUUID()}.ogg`);
 
   try {
-    await fs.writeFile(tempPath, buffer);
+    const bytes = new Uint8Array(new ArrayBuffer(buffer.byteLength));
+    bytes.set(buffer);
+    await fs.writeFile(tempPath, bytes);
     const transcription = await openai.audio.transcriptions.create({
       file: createReadStream(tempPath),
       model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
