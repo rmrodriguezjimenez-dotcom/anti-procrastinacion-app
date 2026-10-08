@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { toFile } from "openai";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpenAI } from "@/lib/openai";
@@ -19,9 +20,7 @@ function verifySignature(raw: string, signature: string | null) {
 
 async function transcribeAudio(buffer: Buffer) {
   const openai = getOpenAI();
-  const bytes = new Uint8Array(new ArrayBuffer(buffer.length));
-  for (let i = 0; i < buffer.length; i += 1) bytes[i] = buffer[i];
-  const file = new File([bytes], "whatsapp-voice.ogg", { type: "audio/ogg" });
+  const file = await toFile(buffer, "whatsapp-voice.ogg", { type: "audio/ogg" });
   const transcription = await openai.audio.transcriptions.create({
     file,
     model: process.env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-mini-transcribe",
