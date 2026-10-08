@@ -41,6 +41,11 @@ export async function POST(request: Request) {
     if (error) throw error;
     return NextResponse.json({ task });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo crear la tarea." }, { status: 500 });
+    console.error("FOCO /api/tasks/interpret error:", error);
+    const message = error instanceof Error ? error.message : "No se pudo crear la tarea.";
+    return NextResponse.json(
+      { error: process.env.NODE_ENV === "development" ? message : "No se pudo crear la tarea." },
+      { status: 500 }
+    );
   }
 }
