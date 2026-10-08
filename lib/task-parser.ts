@@ -130,9 +130,10 @@ export async function parseTaskText(
             return Number.isNaN(date.getTime()) ? null : date.toISOString();
           })()
         : null,
-      estimated_minutes: Number.isFinite(Number(parsed.estimated_minutes))
-        ? Number(parsed.estimated_minutes)
-        : null,
+      estimated_minutes:
+  Number.isFinite(Number(parsed.estimated_minutes)) && Number(parsed.estimated_minutes) > 0
+    ? Math.round(Number(parsed.estimated_minutes))
+    : null,
       recurrence: parsed.recurrence ? String(parsed.recurrence).slice(0, 120) : null,
     };
     return normalized;
